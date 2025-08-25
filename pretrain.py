@@ -127,7 +127,7 @@ def train(args):
 
         current_time = datetime.datetime.now()
         if avg_epoch_loss < best_loss:
-            best_loss = avg_epoch_loss git 
+            best_loss = avg_epoch_loss
             save_dir = '/content/drive/MyDrive'
             os.makedirs(save_dir, exist_ok=True)
             model_save_path = f'{save_dir}/best_gru_model.pth'  # Updated filename
