@@ -212,25 +212,50 @@ class GRULocationPredictor(nn.Module):
         # FFN input now matches GRU output + city embed
         self.ffn_layer = FFNLayer(hidden_size + cityembed_size)
 
+    # def forward(self, day, time, location_x, location_y, timedelta, len_, city):
+    #     # Embed: (batch, seq_len, embed_size)
+    #     embed = self.embedding_layer(day, time, location_x, location_y, timedelta)
+        
+    #     # Handle padding: Pack sequences to ignore PAD in GRU
+    #     packed_embed = pack_padded_sequence(embed, lengths=len_.cpu(), batch_first=True, enforce_sorted=False)
+        
+    #     # GRU forward: packed_output, hidden
+    #     packed_output, _ = self.gru(packed_embed)
+        
+    #     # Unpack: (batch, seq_len, hidden_size)
+    #     gru_output, _ = pad_packed_sequence(packed_output, batch_first=True)
+        
+    #     # City embed: (batch, cityembed_size) -> expand to (batch, seq_len, cityembed_size)
+    #     city_embed = self.city_embedding(city).unsqueeze(1).expand(-1, gru_output.shape[1], -1)
+        
+    #     # Concat GRU output with city embed: (batch, seq_len, hidden_size + cityembed_size)
+    #     combined = torch.cat([gru_output, city_embed], dim=-1)
+        
+    #     # FFN: (batch, seq_len, 2, 200) like original
+    #     output = self.ffn_layer(combined)
+    #     return output
+    
     def forward(self, day, time, location_x, location_y, timedelta, len_, city):
-        # Embed: (batch, seq_len, embed_size)
-        embed = self.embedding_layer(day, time, location_x, location_y, timedelta)
-        
-        # Handle padding: Pack sequences to ignore PAD in GRU
-        packed_embed = pack_padded_sequence(embed, lengths=len_.cpu(), batch_first=True, enforce_sorted=False)
-        
-        # GRU forward: packed_output, hidden
-        packed_output, _ = self.gru(packed_embed)
-        
-        # Unpack: (batch, seq_len, hidden_size)
-        gru_output, _ = pad_packed_sequence(packed_output, batch_first=True)
-        
-        # City embed: (batch, cityembed_size) -> expand to (batch, seq_len, cityembed_size)
-        city_embed = self.city_embedding(city).unsqueeze(1).expand(-1, gru_output.shape[1], -1)
-        
-        # Concat GRU output with city embed: (batch, seq_len, hidden_size + cityembed_size)
-        combined = torch.cat([gru_output, city_embed], dim=-1)
-        
-        # FFN: (batch, seq_len, 2, 200) like original
-        output = self.ffn_layer(combined)
-        return output
+    # Embed: (batch, seq_len, embed_size)
+    embed = self.embedding_layer(day, time, location_x, location_y, timedelta)
+    
+    # Handle padding: Pack sequences to ignore PAD in GRU
+    packed_embed = pack_packed_sequence(embed, lengths=len_.cpu(), batch_first=True, enforce_sorted=False)
+    
+    # GRU forward: packed_output, hidden
+    packed_output, _ = self.gru(packed_embed)
+    
+    # Unpack: (batch, seq_len, hidden_size)
+    gru_output, _ = pad_packed_sequence(packed_output, batch_first=True)
+    
+    # City embed: (batch, seq_len, cityembed_size)
+    city_embed = self.city_embedding(city)  # [64, 2376, 4]
+    # No unsqueeze needed; optionally expand last dimension if required
+    # city_embed = city_embed.expand(-1, -1, gru_output.shape[2])  # Only if cityembed_size needs to match hidden_size
+    
+    # Concat GRU output with city embed: (batch, seq_len, hidden_size + cityembed_size)
+    combined = torch.cat([gru_output, city_embed], dim=-1)
+    
+    # FFN: (batch, seq_len, 2, 200)
+    output = self.ffn_layer(combined)
+    return output
