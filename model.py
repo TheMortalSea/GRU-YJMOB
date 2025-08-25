@@ -246,7 +246,7 @@ class GRULocationPredictor(nn.Module):
         packed_output, _ = self.gru(packed_embed)
         
         # Unpack: (batch, seq_len, hidden_size)
-        gru_output, _ = pad_padded_sequence(packed_output, batch_first=True)
+        gru_output, _ = pad_packed_sequence(packed_output, batch_first=True)
         
         # City embed: (batch, seq_len, cityembed_size)
         city_embed = self.city_embedding(city)  # [64, 2376, 4]
