@@ -240,13 +240,13 @@ class GRULocationPredictor(nn.Module):
         embed = self.embedding_layer(day, time, location_x, location_y, timedelta)
         
         # Handle padding: Pack sequences to ignore PAD in GRU
-        packed_embed = pack_packed_sequence(embed, lengths=len_.cpu(), batch_first=True, enforce_sorted=False)
+        packed_embed = pack_padded_sequence(embed, lengths=len_.cpu(), batch_first=True, enforce_sorted=False)
         
         # GRU forward: packed_output, hidden
         packed_output, _ = self.gru(packed_embed)
         
         # Unpack: (batch, seq_len, hidden_size)
-        gru_output, _ = pad_packed_sequence(packed_output, batch_first=True)
+        gru_output, _ = pad_padded_sequence(packed_output, batch_first=True)
         
         # City embed: (batch, seq_len, cityembed_size)
         city_embed = self.city_embedding(city)  # [64, 2376, 4]
