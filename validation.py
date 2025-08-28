@@ -43,7 +43,7 @@ def Test(args):
     # Load the pre-trained model once
     device = torch.device(f'cuda:{args.cuda}')
     model = GRULocationPredictor(args.layers_num, args.embed_size, args.cityembed_size).to(device)
-    pretrained_model_path = os.path.join(args.pth_dir, 'best_gru_model.pth')
+    pretrained_model_path = os.path.join(args.pth_dir, 'best_GRU_pretrain.pth')
     try:
         model.load_state_dict(torch.load(pretrained_model_path, map_location=device))
         print(f"Loaded pre-trained model from {pretrained_model_path}")
