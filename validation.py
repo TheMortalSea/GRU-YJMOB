@@ -18,7 +18,7 @@ city_names = ['A', 'B', 'C', 'D']
 
 def Test(args):
     """
-    Performs inference on the test set for cities B, C, and D using city-specific fine-tuned GRULocationPredictor models.
+    Performs inference on the test set for cities B, C, and D using a single pre-trained GRULocationPredictor model.
     The test set contains 3000 users for cities B, C, and D.
     Note: The TestSet class typically does not provide ground-truth labels unless modified.
     """
@@ -40,6 +40,19 @@ def Test(args):
 
     os.makedirs(args.save_path, exist_ok=True)
 
+    # Load the pre-trained model once
+    device = torch.device(f'cuda:{args.cuda}')
+    model = GRULocationPredictor(args.layers_num, args.embed_size, args.cityembed_size).to(device)
+    pretrained_model_path = os.path.join(args.pth_dir, 'best_gru_model.pth')
+    try:
+        model.load_state_dict(torch.load(pretrained_model_path, map_location=device))
+        print(f"Loaded pre-trained model from {pretrained_model_path}")
+    except FileNotFoundError:
+        print(f"Error: Pre-trained model file {pretrained_model_path} not found. Exiting.")
+        return
+
+    model.eval()
+
     for city_idx in city_indices:
         city_letter = city_names[city_idx]
         print(f"\n=== Processing City {city_letter} (Test Set) ===")
@@ -50,21 +63,8 @@ def Test(args):
         dataset_test = TestSet(path_arr[city_idx])
         dataloader_test = DataLoader(dataset_test, batch_size=1, num_workers=args.num_workers)
         
-        device = torch.device(f'cuda:{args.cuda}')
-        
-        model = GRULocationPredictor(args.layers_num, args.embed_size, args.cityembed_size).to(device)
-        model_path = os.path.join(args.pth_dir, f'city_{city_letter}_finetune_model.pth')
-        try:
-            model.load_state_dict(torch.load(model_path, map_location=device))
-            print(f"Loaded fine-tuned model for City {city_letter} from {model_path}")
-        except FileNotFoundError:
-            print(f"Error: Fine-tuned model file {model_path} not found. Skipping City {city_letter}.")
-            continue
-        
         all_generated = []
         all_ground_truth = []
-        
-        model.eval()
         
         with torch.no_grad():
             for data in tqdm(dataloader_test, desc=f"City {city_letter}"):
@@ -94,7 +94,7 @@ def Test(args):
                 
                 generated = torch.cat((data['uid'][pred_mask].unsqueeze(-1),
                                      data['d'][pred_mask].unsqueeze(-1)-1,
-                                     data['t'][pred_mask].unsquare(-1)-1,
+                                     data['t'][pred_mask].unsqueeze(-1)-1,
                                      pred+1), dim=-1).cpu().tolist()
                 
                 for point in generated:
@@ -129,7 +129,7 @@ def Test(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pth_dir', type=str, default='/content/drive/MyDrive', help='Directory containing fine-tuned model files')
+    parser.add_argument('--pth_dir', type=str, default='/content/drive/MyDrive', help='Directory containing the pre-trained model file')
     parser.add_argument('--save_path', type=str, default='/content/drive/MyDrive', help='Directory to save generated and reference CSV files')
     parser.add_argument('--num_workers', type=int, default=2)
     parser.add_argument('--embed_size', type=int, default=128)
