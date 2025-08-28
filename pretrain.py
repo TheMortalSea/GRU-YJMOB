@@ -1,6 +1,5 @@
 import os
 import argparse
-import logging
 import random
 import datetime
 from tqdm import tqdm
@@ -63,27 +62,27 @@ def collate_fn(batch):
     }
 
 def train(args):
-    name = 'GRU-postembedABCD_test'  # Updated for clarity
+    name = 'GRU-pretrain-ABCD'
+    os.makedirs(args.save_path, exist_ok=True)
+    model_save_path = os.path.join(args.save_path, 'best_gru_model.pth')
 
     dataset_train = TrainSet(path_arr[:])
-    dataloader_train = DataLoader(dataset_train, batch_size=args.batch_size, shuffle=True, collate_fn=collate_fn, num_workers=args.num_workers, pin_memory=True)
+    dataloader_train = DataLoader(dataset_train, batch_size=args.batch_size, shuffle=True, 
+                                 collate_fn=collate_fn, num_workers=args.num_workers, pin_memory=True)
     
     device = torch.device(f'cuda:{args.cuda}')
-
-    # Changed to GRULocationPredictor
     model = GRULocationPredictor(args.layers_num, args.embed_size, args.cityembed_size).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
     criterion = nn.CrossEntropyLoss()
-
     scaler = GradScaler()
 
-    best_loss = float('inf')  # Initialize best loss
+    best_loss = float('inf')
 
     for epoch_id in range(args.epochs):
         total_epoch_loss = 0
-        for batch_id, batch in enumerate(tqdm(dataloader_train)):
+        for batch_id, batch in enumerate(tqdm(dataloader_train, desc=f"Epoch {epoch_id + 1}")):
             batch['d'] = batch['d'].to(device)
             batch['t'] = batch['t'].to(device)
             batch['input_x'] = batch['input_x'].to(device)
@@ -108,8 +107,8 @@ def train(args):
             check_range("city", batch['city'], model.city_embedding.city_embedding.num_embeddings)
 
             with autocast():
-                output = model(batch['d'], batch['t'], batch['input_x'], batch['input_y'], batch['time_delta'], batch['len'], batch['city'])
-                
+                output = model(batch['d'], batch['t'], batch['input_x'], batch['input_y'], 
+                             batch['time_delta'], batch['len'], batch['city'])
                 label = torch.stack((batch['label_x'], batch['label_y']), dim=-1)
                 pred_mask = (batch['input_x'] == 201)
                 pred_mask = torch.cat((pred_mask.unsqueeze(-1), pred_mask.unsqueeze(-1)), dim=-1)
@@ -125,12 +124,8 @@ def train(args):
         avg_epoch_loss = total_epoch_loss / len(dataloader_train)
         scheduler.step()
 
-        current_time = datetime.datetime.now()
         if avg_epoch_loss < best_loss:
             best_loss = avg_epoch_loss
-            save_dir = '/content/drive/MyDrive'
-            os.makedirs(save_dir, exist_ok=True)
-            model_save_path = f'{save_dir}/best_gru_model.pth'  # Updated filename
             torch.save(model.state_dict(), model_save_path)
             print(f"Epoch {epoch_id + 1}/{args.epochs}, Average Loss: {avg_epoch_loss:.4f} - NEW BEST! Model saved to {model_save_path}")
         else:
@@ -147,6 +142,7 @@ if __name__ == '__main__':
     parser.add_argument('--cuda', type=int, default=0)
     parser.add_argument('--lr', type=float, default=4e-4)
     parser.add_argument('--seed', type=int, default=3407)
+    parser.add_argument('--save_path', type=str, default='/content/drive/MyDrive', help='Directory to save the best model')
     args = parser.parse_args()
 
     set_random_seed(args.seed)
