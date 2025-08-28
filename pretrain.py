@@ -64,7 +64,7 @@ def collate_fn(batch):
 def train(args):
     name = 'GRU-pretrain-ABCD'
     os.makedirs(args.save_path, exist_ok=True)
-    model_save_path = os.path.join(args.save_path, 'best_gru_model.pth')
+    model_save_path = os.path.join(args.save_path, 'best_GRU_pretrain.pth')
 
     dataset_train = TrainSet(path_arr[:])
     dataloader_train = DataLoader(dataset_train, batch_size=args.batch_size, shuffle=True, 
