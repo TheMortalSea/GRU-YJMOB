@@ -1,3 +1,4 @@
+# Modified validation.py
 import os
 import argparse
 import pandas as pd
@@ -58,13 +59,11 @@ def Test(args):
         print(f"\n=== Processing City {city_letter} (Test Set) ===")
         
         generated_name = f'city_{city_letter}_test_generated.csv.gz'
-        ground_truth_name = f'city_{city_letter}_reference.csv.gz'
         
         dataset_test = TestSet(path_arr[city_idx])
         dataloader_test = DataLoader(dataset_test, batch_size=1, num_workers=args.num_workers)
         
         all_generated = []
-        all_ground_truth = []
         
         with torch.no_grad():
             for data in tqdm(dataloader_test, desc=f"City {city_letter}"):
@@ -76,10 +75,6 @@ def Test(args):
                 data['time_delta'] = data['time_delta'].to(device)
                 data['city'] = data['city'].to(device)
                 data['len'] = data['len'].to(device)
-                
-                if 'label_x' in data and 'label_y' in data:
-                    data['label_x'] = data['label_x'].to(device)
-                    data['label_y'] = data['label_y'].to(device)
                 
                 output = model(data['d'], data['t'], data['input_x'], data['input_y'], 
                               data['time_delta'], data['len'], data['city'])
@@ -99,30 +94,11 @@ def Test(args):
                 
                 for point in generated:
                     all_generated.append(point)
-                
-                if 'label_x' in data and 'label_y' in data:
-                    ground_truth = torch.cat((data['uid'][pred_mask].unsqueeze(-1),
-                                            data['d'][pred_mask].unsqueeze(-1)-1,
-                                            data['t'][pred_mask].unsqueeze(-1)-1,
-                                            data['label_x'][pred_mask].unsqueeze(-1)+1,
-                                            data['label_y'][pred_mask].unsqueeze(-1)+1), dim=-1).cpu().tolist()
-                    
-                    for point in ground_truth:
-                        all_ground_truth.append(point)
         
         columns = ['uid', 'd', 't', 'x', 'y']
         generated_df = pd.DataFrame(all_generated, columns=columns)
         generated_save_path = os.path.join(args.save_path, generated_name)
         generated_df.to_csv(generated_save_path, index=False, compression='gzip')
-        
-        if all_ground_truth:
-            ground_truth_df = pd.DataFrame(all_ground_truth, columns=columns)
-            ground_truth_save_path = os.path.join(args.save_path, ground_truth_name)
-            ground_truth_df.to_csv(ground_truth_save_path, index=False, compression='gzip')
-            print(f"Ground truth saved to: {ground_truth_save_path}")
-            print(f"Total ground truth points: {len(all_ground_truth)}")
-        else:
-            print("Warning: No ground truth data found!")
         
         print(f"Generated test predictions saved to: {generated_save_path}")
         print(f"Total generated points: {len(all_generated)}")

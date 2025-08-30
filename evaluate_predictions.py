@@ -1,3 +1,4 @@
+# Modified evaluate_predictions.py (no changes needed as it already references existing ground truth files with the convention city_{city}_reference.csv.gz)
 import os
 import argparse
 import csv
