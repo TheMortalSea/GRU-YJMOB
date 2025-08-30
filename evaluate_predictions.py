@@ -124,7 +124,7 @@ def evaluate_all_cities(save_path, cities):
     all_trajectory_lengths = []
     
     for city in cities:
-        reference_file = os.path.join(save_path, f'city_{city}_reference.csv.gz')
+        reference_file = os.path.join(save_path, f'city{city}_reference.csv.gz')
         generated_file = os.path.join(save_path, f'city_{city}_test_generated.csv.gz')
         
         if not os.path.exists(reference_file):
